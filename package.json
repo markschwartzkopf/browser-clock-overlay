@@ -1,0 +1,11 @@
+{
+  "name": "browser-clock-overlay",
+  "version": "1.0.0",
+  "description": "Browser source clock overlay for kiosk-setup computers to output fill+key clock for video overlays",
+  "keywords": [
+    "clock",
+    "overlay"
+  ],
+  "author": "Mark Schwartzkopf",
+  "license": "MIT"
+}

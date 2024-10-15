@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clock Overlay</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: black;
+        color: white;
+        font-family: Arial, sans-serif;
+      }
+      html,
+      body {
+        cursor: none;
+      }
+      #clock {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        white-space: nowrap;
+      }
+      #settings {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="clock">
+      12:00 AM
+    </div>
+    <div id="settings">
+      <label for="x">X:</label>
+      <input type="number" id="x" value="0" min="-50" max="50" />
+      <label for="y">Y:</label>
+      <input type="number" id="y" value="0" min="-50" max="50" />
+      <label for="height">Height:</label>
+      <input type="number" id="height" value="30" min="1" max="100" />
+      <label for="color">Color:</label>
+      <input type="color" id="color" value="#ffffff" />
+      <label for="offset">Time Zone Offset:</label>
+      <input type="number" id="offset" value="-5" min="-12" max="14" />
+      <label for="dst">Use Daylight Saving:</label>
+      <input type="checkbox" id="dst" checked="true" />
+    </div>
+  </body>
+  <script>
+    let x = Number(localStorage.getItem("x")) | 0;
+    let y = Number(localStorage.getItem("y")) || 0;
+    let height =
+      localStorage.getItem("height") !== null
+        ? Number(localStorage.getItem("height"))
+        : 20;
+    let colorString =
+      localStorage.getItem("color") !== null
+        ? localStorage.getItem("color")
+        : [255, 255, 255];
+    let color =
+      typeof colorString === "string"
+        ? colorString.split(",").map(Number)
+        : colorString;
+    let offset =
+      localStorage.getItem("offset") !== null
+        ? Number(localStorage.getItem("offset"))
+        : -1;
+    let dst =
+      localStorage.getItem("dst") !== null
+        ? Boolean(localStorage.getItem("dst"))
+        : true;
+
+    const xInput = document.getElementById("x");
+    const yInput = document.getElementById("y");
+    const heightInput = document.getElementById("height");
+    const colorInput = document.getElementById("color");
+    const offsetInput = document.getElementById("offset");
+    const dstInput = document.getElementById("dst");
+
+    xInput.value = x;
+    yInput.value = y;
+    heightInput.value = height;
+    colorInput.value = `#${color[0]
+      .toString(16)
+      .padStart(2, "0")}${color[1]
+      .toString(16)
+      .padStart(2, "0")}${color[2].toString(16).padStart(2, "0")}`;
+    offsetInput.value = offset;
+    dstInput.checked = dst;
+
+    xInput.oninput = () => {
+      x = Number(xInput.value);
+      localStorage.setItem("x", x);
+      setClockDiv();
+    };
+    yInput.oninput = () => {
+      y = Number(yInput.value);
+      localStorage.setItem("y", y);
+      setClockDiv();
+    };
+    heightInput.oninput = () => {
+      height = Number(heightInput.value);
+      localStorage.setItem("height", height);
+      setClockDiv();
+    };
+    colorInput.oninput = () => {
+      color = colorInput.value
+        .slice(1)
+        .match(/.{1,2}/g)
+        .map((x) => parseInt(x, 16));
+      localStorage.setItem("color", color);
+      setClockDiv();
+    };
+    offsetInput.oninput = () => {
+      offset = Number(offsetInput.value);
+      localStorage.setItem("offset", offset);
+      updateTime();
+    };
+    dstInput.oninput = () => {
+      dst = dstInput.checked;
+      localStorage.setItem("dst", dst);
+      updateTime();
+    };
+
+    function setClockDiv() {
+      const clockDiv = document.getElementById("clock");
+      clockDiv.style.top = `${50 - y}vh`;
+      clockDiv.style.left = `${50 + x}vw`;
+      clockDiv.style.fontSize = `${height}vh`;
+      clockDiv.style.color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    }
+    setClockDiv();
+
+    function getLocalTimeZone() {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+
+    function getTimeZoneAbbreviation() {
+      const timeZone = getLocalTimeZone();
+      const date = new Date();
+      const options = { timeZone, timeZoneName: "short" };
+      const formattedDate = date.toLocaleTimeString("en-US", options);
+      const timeZoneAbbreviation = formattedDate.match(/\b[A-Z]{1,4}\b/g)[1];
+      return timeZoneAbbreviation;
+    }
+
+    let cursorTimeout = null;
+
+    function hideCursor() {
+      document.body.style.cursor = "none";
+      document.body.parentElement.style.cursor = "none";
+      document.getElementById("settings").style.display = "none";
+      //console.log('Cursor is now hidden');
+    }
+
+    setTimeout(() => {
+      hideCursor();
+    }, 100);
+
+    document.addEventListener("mousemove", () => {
+      if (cursorTimeout) {
+        clearInterval(cursorTimeout);
+      }
+      cursorTimeout = setTimeout(() => {
+        hideCursor();
+      }, 5000);
+      document.body.style.cursor = "default";
+      document.body.parentElement.style.cursor = "default";
+      document.getElementById("settings").style.display = "unset";
+      //console.log('Cursor is now visible');
+    });
+
+    let then = new Date();
+    let thenDate = new Date(then);
+
+    let onSystemTime = true;
+
+    function getTime() {
+      if (onSystemTime) {
+        console.log("Using system time");
+        then = new Date();
+        thenDate = new Date(then);
+        updateTime();
+      }
+      console.log("Reqesting time from worldclockapi.com");
+      fetch("http://worldclockapi.com/api/json/utc/now")
+        .then((response) => response.text())
+        .then((data) => {
+          try {
+            const json = JSON.parse(data);
+            if (typeof json !== "object") {
+              throw new Error("Invalid JSON");
+            } else if (!json.currentDateTime) {
+              throw new Error("no currentDateTime in JSON");
+            } else {
+              console.log("Got time from worldclockapi.com");
+              onSystemTime = false;
+              then = new Date();
+              thenDate = new Date(json.currentDateTime);
+              updateTime();
+            }
+          } catch (e) {
+            console.error("Error parsing JSON:", e);
+          }
+        })
+        .catch((error) => console.error("Error fetching the URL:", error));
+    }
+    getTime();
+
+    function updateTime() {
+      const now = new Date();
+      const secondsSinceThen = Math.round((now - then) / 1000);
+      const nowDate = new Date(thenDate.getTime() + secondsSinceThen * 1000);
+      let hours = nowDate.getUTCHours();
+      hours += offset;
+      if (dst && isDST(nowDate)) {
+        hours += 1;
+      }
+      hours = (hours + 48) % 24;
+      const period = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12 || 12; // Convert to 12-hour format and handle midnight (0 hours)
+      hours = String(hours).padStart(2, "0");
+      const minutes = String(nowDate.getMinutes()).padStart(2, "0");
+      //const seconds = String(nowDate.getSeconds()).padStart(2, "0");
+      document.getElementById(
+        "clock"
+      ).innerText = `${hours}:${minutes} ${period}`;
+    }
+
+    function isDST(date) {
+      const standardDate = new Date(date.getFullYear(), 0, 1); // January 1st of the same year
+      const standardOffset = standardDate.getTimezoneOffset();
+      const currentOffset = date.getTimezoneOffset();
+      return currentOffset < standardOffset;
+    }
+
+    setInterval(getTime, 24*60*60*1000);
+
+    updateTime();
+    setInterval(updateTime, 1000);
+
+  </script>
+</html>
