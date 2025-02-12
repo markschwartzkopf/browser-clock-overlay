@@ -8,6 +8,7 @@
       body {
         margin: 0;
         padding: 0;
+        /* background-color: white; */
         background-color: black;
         color: white;
         font-family: Arial, sans-serif;
@@ -21,6 +22,7 @@
         transform: translate(-50%, -50%);
         white-space: nowrap;
         font-weight: bold;
+        text-shadow: 0px 0px 20px #0000ff;
       }
       #settings {
         display: none;
@@ -28,9 +30,7 @@
     </style>
   </head>
   <body>
-    <div id="clock">
-      12:00 AM
-    </div>
+    <div id="clock">12:00 AM</div>
     <div id="settings">
       <label for="x">X:</label>
       <input type="number" id="x" value="0" min="-50" max="50" />
@@ -40,6 +40,10 @@
       <input type="number" id="height" value="30" min="1" max="100" />
       <label for="color">Color:</label>
       <input type="color" id="color" value="#ffffff" />
+      <label for="radius">Blur Radius</label>
+      <input type="number" id="radius" value="20" min="0" max="100" />
+      <label for="shadow-color">Shadow Color:</label>
+      <input type="color" id="shadow-color" value="#0000ff" />
       <label for="offset">Time Zone Offset:</label>
       <input type="number" id="offset" value="-5" min="-12" max="14" />
       <label for="dst">Use Daylight Saving:</label>
@@ -61,6 +65,18 @@
       typeof colorString === "string"
         ? colorString.split(",").map(Number)
         : colorString;
+    let radius =
+      localStorage.getItem("radius") !== null
+        ? Number(localStorage.getItem("radius"))
+        : 20;
+    let shadowString =
+      localStorage.getItem("shadow") !== null
+        ? localStorage.getItem("shadow")
+        : [0, 0, 255];
+    let shadow =
+      typeof shadowString === "string"
+        ? shadowString.split(",").map(Number)
+        : shadowString;
     let offset =
       localStorage.getItem("offset") !== null
         ? Number(localStorage.getItem("offset"))
@@ -74,17 +90,21 @@
     const yInput = document.getElementById("y");
     const heightInput = document.getElementById("height");
     const colorInput = document.getElementById("color");
+    const radiusInput = document.getElementById("radius");
+    const shadowInput = document.getElementById("shadow-color");
     const offsetInput = document.getElementById("offset");
     const dstInput = document.getElementById("dst");
 
     xInput.value = x;
     yInput.value = y;
     heightInput.value = height;
-    colorInput.value = `#${color[0]
-      .toString(16)
-      .padStart(2, "0")}${color[1]
+    colorInput.value = `#${color[0].toString(16).padStart(2, "0")}${color[1]
       .toString(16)
       .padStart(2, "0")}${color[2].toString(16).padStart(2, "0")}`;
+    radiusInput.value = radius;
+    shadowInput.value = `#${shadow[0].toString(16).padStart(2, "0")}${shadow[1]
+      .toString(16)
+      .padStart(2, "0")}${shadow[2].toString(16).padStart(2, "0")}`;
     offsetInput.value = offset;
     dstInput.checked = dst;
 
@@ -111,6 +131,21 @@
       localStorage.setItem("color", color);
       setClockDiv();
     };
+
+    radiusInput.oninput = () => {
+      radius = Number(radiusInput.value);
+      localStorage.setItem("radius", radius);
+      setClockDiv();
+    };
+    shadowInput.oninput = () => {
+      shadow = shadowInput.value
+        .slice(1)
+        .match(/.{1,2}/g)
+        .map((x) => parseInt(x, 16));
+      localStorage.setItem("shadow", shadow);
+      setClockDiv();
+    };
+
     offsetInput.oninput = () => {
       offset = Number(offsetInput.value);
       localStorage.setItem("offset", offset);
@@ -128,6 +163,8 @@
       clockDiv.style.left = `${50 + x}vw`;
       clockDiv.style.fontSize = `${height}vh`;
       clockDiv.style.color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+      clockDiv.style.textShadow = `0px 0px ${radius}px rgb(${shadow[0]}, ${shadow[1]}, ${shadow[2]})`;
+      console.log(`0px 0px ${radius}px rgb(${shadow[0]}, ${shadow[1]}, ${shadow[2]})`)
     }
     setClockDiv();
 
@@ -234,10 +271,9 @@
       return currentOffset < standardOffset;
     }
 
-    setInterval(getTime, 24*60*60*1000);
+    setInterval(getTime, 24 * 60 * 60 * 1000);
 
     updateTime();
     setInterval(updateTime, 1000);
-
   </script>
 </html>
